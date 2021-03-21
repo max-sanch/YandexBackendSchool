@@ -4,18 +4,20 @@ from django.contrib.postgres.fields import ArrayField
 
 class Courier(models.Model):
 	"""Базовая модель курьера"""
+
 	courier_id = models.IntegerField(
-		verbose_name='Уникальный идентификатор курьера',
+		verbose_name='Идентификатор курьера',
 		unique=True,
 		db_index=True
 	)
 	COURIER_TYPES = (
-		(0, 'foot'),
-		(1, 'bike'),
-		(2, 'car')
+		('foot', 10),
+		('bike', 15),
+		('car', 50)
 	)
-	courier_type = models.IntegerField(
+	courier_type = models.CharField(
 		verbose_name='Тип курьера',
+		max_length=4,
 		choices=COURIER_TYPES
 	)
 	regions = ArrayField(

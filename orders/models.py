@@ -6,8 +6,9 @@ from couriers.models import Courier
 
 class Order(models.Model):
 	"""Базовая модель заказа"""
+
 	order_id = models.IntegerField(
-		verbose_name='Уникальный идентификатор заказа',
+		verbose_name='Идентификатор заказа',
 		unique=True,
 		db_index=True
 	)
@@ -16,7 +17,7 @@ class Order(models.Model):
 	delivery_hours = ArrayField(
 		models.CharField(max_length=11),
 		size=None,
-		verbose_name='График работы курьера'
+		verbose_name='Промежутки приёма заказов'
 	)
 	STATUSES = (
 		(0, 'Новый'),
@@ -25,12 +26,15 @@ class Order(models.Model):
 	)
 	status = models.IntegerField(
 		verbose_name='Вес заказа',
-		choices=STATUSES
+		choices=STATUSES,
+		default=0
 	)
+	objects = models.Manager()
 
 
 class OrderGroup(models.Model):
 	"""Группа заказов выполняющаяся одним курьером"""
+
 	courier = models.OneToOneField(
 		'couriers.Courier',
 		on_delete=models.CASCADE,
@@ -40,10 +44,12 @@ class OrderGroup(models.Model):
 		verbose_name='Время выбора заказов',
 		auto_now_add=True
 	)
+	objects = models.Manager()
 
 
 class OrderDetail(models.Model):
-	"""Информация о взятых в работу и завершённых заказов"""
+	"""Информация о взятых в работу и завершённых заказах"""
+
 	order = models.OneToOneField(
 		Order,
 		on_delete=models.CASCADE,
@@ -61,17 +67,19 @@ class OrderDetail(models.Model):
 		on_delete=models.SET_NULL,
 		verbose_name='Группа заказа'
 	)
-	courier_type = models.IntegerField(
+	courier_type = models.CharField(
 		verbose_name='Тип курьера исполняющего заказ',
+		max_length=4,
 		choices=Courier.COURIER_TYPES
 	)
 	start_time = models.DateTimeField(
 		verbose_name='Начало выполнения заказа',
 		null=True,
-		blank=True
+		default=None
 	)
 	end_time = models.DateTimeField(
 		verbose_name='Окончание выполнения заказа',
 		null=True,
-		blank=True
+		default=None
 	)
+	objects = models.Manager()
