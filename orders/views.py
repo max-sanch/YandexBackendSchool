@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .services import order_handler
-from .serializers import OrderCreateSerializer, OrderAssignSerializer
+from .serializers import OrderCreateSerializer, OrderAssignSerializer, OrderCompleteSerializer
 from core.views import CreateDataListMixin
 
 
@@ -29,4 +29,12 @@ class OrderCompleteView(APIView):
 	"""Завершение заказа"""
 
 	def post(self, request):
-		pass
+		serializer = OrderCompleteSerializer(data=request.data)
+		if serializer.is_valid():
+			response = order_handler.OrderCompleteHandler(
+				serializer.data.get('courier_id'),
+				serializer.data.get('order_id'),
+				serializer.data.get('complete_time')
+			)
+			return response(status=status.HTTP_200_OK)
+		return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

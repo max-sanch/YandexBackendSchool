@@ -67,6 +67,7 @@ class OrderDetail(models.Model):
 		on_delete=models.SET_NULL,
 		verbose_name='Группа заказа'
 	)
+	region = models.IntegerField(verbose_name='Район доставки заказа')
 	courier_type = models.CharField(
 		verbose_name='Тип курьера исполняющего заказ',
 		max_length=4,

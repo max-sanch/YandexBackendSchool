@@ -1,6 +1,8 @@
 from rest_framework.response import Response
 from rest_framework import status
 
+from .serializers import CreateDataListSerializer
+
 
 class CreateDataListMixin:
 	"""
@@ -9,10 +11,16 @@ class CreateDataListMixin:
 	"""
 
 	def post(self, request, context, serializer_class):
+		serialize_data = CreateDataListSerializer(data=request.data)
+
+		# Валидируем основное тело запроса
+		if not serialize_data.is_valid():
+			return Response(serialize_data.errors, status=status.HTTP_400_BAD_REQUEST)
+
 		errors = {'validation_error': {context+'s': []}}
 		valid_objects = []
 
-		# Валидируем все данные
+		# Валидируем список входных данных
 		for data in request.data.get('data', []):
 			obj = serializer_class(data=data)
 			if obj.is_valid():

@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from rest_framework.response import Response
 from django.utils import timezone
@@ -61,9 +61,11 @@ class OrderAssignHandler:
 			return Response(self.get_response(), status=status)
 
 	def get_courier(self):
+		"""Возвращаем курьера по его идентификатору"""
 		return Courier.objects.get(courier_id=self.courier_id)
 
 	def get_response(self, orders=None, assign_time=None, is_added=False):
+		"""Формируем и возвращаем тело ответа"""
 		if orders is None:
 			orders = self.get_orders()
 
@@ -81,6 +83,7 @@ class OrderAssignHandler:
 		return {'orders': OrderHandlerTools.get_id_orders(orders), 'assign_time': assign_time}
 
 	def get_orders(self):
+		"""Возвращаем заказы подходящие для конкретного курьера"""
 		max_weight = dict(Courier.COURIER_TYPES).get(self.courier.courier_type)
 		orders = Order.objects.filter(
 			status=0,
@@ -101,6 +104,7 @@ class OrderAssignHandler:
 		return result
 
 	def add_orders(self, orders, assign_time):
+		"""Формируем развоз для курьера из списка заказов"""
 		order_group = OrderGroup(
 			courier=self.courier,
 			assign_time=assign_time,
@@ -111,11 +115,59 @@ class OrderAssignHandler:
 				order=order,
 				courier=self.courier,
 				order_group=order_group,
+				region=order.region,
 				courier_type=self.courier.courier_type
 			)
 			order_detail.save()
 			order.status = 1
 			order.save()
+
+
+class OrderCompleteHandler:
+	"""Обработчик завершения заказа"""
+
+	def __init__(self, courier_id, order_id, complete_time):
+		self.complete_time = datetime.strptime(complete_time, settings.TIME_FORMAT)
+		self.courier_id = int(courier_id)
+		self.order_id = int(order_id)
+
+	def __call__(self, status):
+		self.order = Order.objects.get(order_id=self.order_id)
+		if self.order.status == 1:
+			self.save_completed_order()
+		return Response(self.get_response(), status=status)
+
+	def get_response(self):
+		"""Формируем и возвращаем тело ответа"""
+		return {'order_id': self.order_id}
+
+	def save_completed_order(self):
+		"""Сохраняем завершение заказа"""
+		self.order.status = 2
+		order_detail = OrderDetail.objects.get(order=self.order)
+		order_group = OrderGroup.objects.get(courier=order_detail.courier)
+		order_detail.end_time = self.complete_time
+
+		if order_detail.start_time is None:
+			order_detail.start_time = order_group.assign_time
+
+		self.order.save()
+		order_detail.save()
+		self.check_other_orders(order_group)
+
+	def check_other_orders(self, order_group):
+		"""
+		Удаляем группу заказов(развоз), если заказов в нём не осталось,
+		иначе устанавливаем время начала выполнения для оставшихся заказов.
+		"""
+		orders_detail = OrderDetail.objects.filter(order_group=order_group, order__status=1)
+
+		if len(orders_detail) == 0:
+			order_group.delete()
+		else:
+			for order_detail in orders_detail:
+				order_detail.start_time = self.complete_time
+				order_detail.save()
 
 
 class PossibilityExecutionOrders:
@@ -131,15 +183,24 @@ class PossibilityExecutionOrders:
 			self.check_orders(order_group)
 
 	def get_courier(self):
+		"""Возвращаем курьера по его идентификатору"""
 		return Courier.objects.get(courier_id=self.courier_id)
 
 	def get_order_group(self):
+		"""
+		Возвращаем группу заказов(развоз) для конкретного
+		курьера, None если такой группы нету.
+		"""
 		try:
 			return OrderGroup.objects.get(courier=self.courier)
 		except OrderGroup.DoesNotExist:
 			return None
 
 	def check_orders(self, order_group):
+		"""
+		Проверяем, может ли курьер выполнить выданные ему заказы,
+		и убираем из развоза, если выполнение заказа невозможно.
+		"""
 		orders_detail = OrderDetail.objects.filter(order_group=order_group, order__status=1).order_by('order__weight')
 		max_weight = dict(Courier.COURIER_TYPES).get(self.courier.courier_type)
 		courier_minutes = OrderHandlerTools.get_minute_list(self.courier.working_hours)
@@ -156,14 +217,19 @@ class PossibilityExecutionOrders:
 				weight += order_detail.order.weight
 
 			if weight > max_weight or order_detail.order.region not in self.courier.regions or \
-				len(courier_minutes & OrderHandlerTools.get_minute_list(order_detail.order.delivery_hours)) == 0:
+					len(courier_minutes & OrderHandlerTools.get_minute_list(order_detail.order.delivery_hours)) == 0:
 				self.cancel_order(order_detail)
 
+		# Удаляем группу заказов(развоз), если заказов в нём не осталось
 		if len(OrderDetail.objects.filter(order_group=order_group, order__status=1)) == 0:
 			order_group.delete()
 
 	@staticmethod
 	def cancel_order(order_detail):
+		"""
+		Убираем заказ из развоза и делаем доступным
+		для назначения этого заказа другим курьерам.
+		"""
 		order = order_detail.order
 		order_detail.delete()
 		order.status = 0

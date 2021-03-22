@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
 from .models import Courier
-from core.validators import ValidationFields, ValidationEmpty
+import core.validators as validator
 
 
 class CourierCreateSerializer(serializers.ModelSerializer):
@@ -33,13 +33,14 @@ class CourierCreateSerializer(serializers.ModelSerializer):
 			label='Период работы курьера',
 			max_length=11
 		),
-		label='График работы курьера'
+		label='График работы курьера',
+		validators=[validator.ValidationTimeFormat()]
 	)
 
 	class Meta:
 		model = Courier
 		exclude = ('id', )
-		validators = [ValidationFields()]
+		validators = [validator.ValidationFields()]
 
 
 class CourierUpdateSerializer(serializers.ModelSerializer):
@@ -64,10 +65,11 @@ class CourierUpdateSerializer(serializers.ModelSerializer):
 			label='Период работы курьера',
 			max_length=11
 		),
-		label='График работы курьера'
+		label='График работы курьера',
+		validators=[validator.ValidationTimeFormat()]
 	)
 
 	class Meta:
 		model = Courier
 		exclude = ('id', 'courier_id')
-		validators = [ValidationEmpty(), ValidationFields()]
+		validators = [validator.ValidationEmpty(), validator.ValidationFields()]
