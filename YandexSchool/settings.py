@@ -115,12 +115,15 @@ AUTH_PASSWORD_VALIDATORS = [
 
 APPEND_SLASH = False
 
+# Путь к базе данных GeoLite2-City
+GEOIP_PATH = os.path.join(BASE_DIR, 'geoip/')
+
 # Internationalization
 # https://docs.djangoproject.com/en/3.1/topics/i18n/
 
 LANGUAGE_CODE = 'ru-ru'
 
-TIME_ZONE = 'Europe/Moscow'
+TIME_ZONE = 'UTC'
 
 TIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 
@@ -135,3 +138,4 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 
 STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')

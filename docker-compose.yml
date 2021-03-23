@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    command: gunicorn YandexSchool.wsgi:application --bind 0:8000
+    volumes:
+      - static:/usr/src/app/static
+    expose:
+      - 8000
+    env_file:
+      - ./YandexSchool/.env
+    restart: always
+    depends_on:
+      - db
+  db:
+    image: postgres:12
+    expose:
+      - 5432
+    volumes:
+      - ../pg_data:/var/lib/postgresql/data/pgdata
+    environment:
+      - POSTGRES_DB=yandex_rest
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    restart: always
+  nginx:
+    build: nginx/.
+    volumes:
+      - static:/usr/src/app/static
+    ports:
+      - 8080:80
+    restart: always
+    depends_on:
+      - app
+
+volumes:
+  static:

@@ -34,7 +34,7 @@ class CourierRatingAndEarnings:
 		"""
 		if len(self.orders_detail) == 0:
 			return None
-		return (3600 - min(min(self.get_average_regions_time()), 3600))/3600 * 5
+		return round((3600 - min(min(self.get_average_regions_time()), 3600))/3600 * 5, 2)
 
 	def get_average_regions_time(self):
 		"""Возвращаем список средних времен доставки по районам"""

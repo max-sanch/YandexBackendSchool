@@ -20,7 +20,7 @@ class OrderAssignView(APIView):
 	def post(self, request):
 		courier_id = OrderAssignSerializer(data=request.data)
 		if courier_id.is_valid():
-			response = order_handler.OrderAssignHandler(courier_id.data.get('courier_id'))
+			response = order_handler.OrderAssignHandler(courier_id.data.get('courier_id'), request)
 			return response(status=status.HTTP_200_OK)
 		return Response(courier_id.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -34,7 +34,8 @@ class OrderCompleteView(APIView):
 			response = order_handler.OrderCompleteHandler(
 				serializer.data.get('courier_id'),
 				serializer.data.get('order_id'),
-				serializer.data.get('complete_time')
+				serializer.data.get('complete_time'),
+				request
 			)
 			return response(status=status.HTTP_200_OK)
 		return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

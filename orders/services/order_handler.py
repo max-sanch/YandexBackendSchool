@@ -1,3 +1,4 @@
+import pytz
 from datetime import timedelta, datetime
 
 from rest_framework.response import Response
@@ -6,6 +7,7 @@ from django.conf import settings
 
 from orders.models import Order, OrderGroup, OrderDetail
 from couriers.models import Courier
+from core.utils import get_time_zone_client
 
 
 class OrderHandlerTools:
@@ -48,8 +50,9 @@ class OrderHandlerTools:
 class OrderAssignHandler:
 	"""Обработчик подбора заказов для курьера"""
 
-	def __init__(self, courier_id):
+	def __init__(self, courier_id, request):
 		self.courier_id = courier_id
+		self.request = request
 		self.courier = self.get_courier()
 
 	def __call__(self, status):
@@ -73,14 +76,18 @@ class OrderAssignHandler:
 				return {'orders': []}
 
 		if assign_time is None:
-			assign_time = timezone.now().strftime(settings.TIME_FORMAT)
+			assign_time = timezone.now()
 		else:
 			assign_time -= timedelta(microseconds=assign_time.microsecond)
-			assign_time.strftime(settings.TIME_FORMAT)
+		assign_time = assign_time.astimezone(get_time_zone_client(self.request))
 
 		if not is_added:
-			self.add_orders(orders, assign_time)
-		return {'orders': OrderHandlerTools.get_id_orders(orders), 'assign_time': assign_time}
+			self.add_orders(orders, assign_time.strftime(settings.TIME_FORMAT))
+
+		return {
+			'orders': OrderHandlerTools.get_id_orders(orders),
+			'assign_time': assign_time.strftime(settings.TIME_FORMAT)
+		}
 
 	def get_orders(self):
 		"""Возвращаем заказы подходящие для конкретного курьера"""
@@ -126,8 +133,9 @@ class OrderAssignHandler:
 class OrderCompleteHandler:
 	"""Обработчик завершения заказа"""
 
-	def __init__(self, courier_id, order_id, complete_time):
-		self.complete_time = datetime.strptime(complete_time, settings.TIME_FORMAT)
+	def __init__(self, courier_id, order_id, complete_time, request):
+		self.request = request
+		self.complete_time = self.set_complete_time(complete_time)
 		self.courier_id = int(courier_id)
 		self.order_id = int(order_id)
 
@@ -136,6 +144,13 @@ class OrderCompleteHandler:
 		if self.order.status == 1:
 			self.save_completed_order()
 		return Response(self.get_response(), status=status)
+
+	def set_complete_time(self, complete_time):
+		"""Преобразуем локальное время в серверное"""
+		complete_time = datetime.strptime(complete_time, settings.TIME_FORMAT)
+		complete_time = get_time_zone_client(self.request).localize(complete_time)
+		complete_time = complete_time.astimezone(pytz.utc)
+		return complete_time
 
 	def get_response(self):
 		"""Формируем и возвращаем тело ответа"""
