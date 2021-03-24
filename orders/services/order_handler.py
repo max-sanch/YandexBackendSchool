@@ -77,8 +77,8 @@ class OrderAssignHandler:
 
 		if assign_time is None:
 			assign_time = timezone.now()
-		else:
 			assign_time -= timedelta(microseconds=assign_time.microsecond)
+
 		assign_time = assign_time.astimezone(get_time_zone_client(self.request))
 
 		if not is_added:
